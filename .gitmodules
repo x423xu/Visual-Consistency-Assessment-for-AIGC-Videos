@@ -1,0 +1,3 @@
+[submodule "T2VQA"]
+	path = T2VQA
+	url = https://github.com/QMME/T2VQA.git
