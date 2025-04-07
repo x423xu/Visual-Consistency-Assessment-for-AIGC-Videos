@@ -11,6 +11,7 @@ from PIL import Image
 
 decord.bridge.set_bridge("torch")
 
+
 class SampleFrames:
     def __init__(self, clip_len, frame_interval=1, num_clips=1):
 
@@ -95,20 +96,19 @@ class SampleFrames:
         return frame_inds.astype(np.int32)
 
 
-
 class T2VDataset(Dataset):
     """Deformation of materials dataset."""
 
-    def __init__(self, opt):
-        
-        self.ann_file = opt["anno_file"]
-        self.data_prefix = opt["data_prefix"]
-        self.clip_len = opt["clip_len"]
-        self.frame_interval = opt["frame_interval"]
-        self.size = opt["size"]
+    def __init__(self, opt, anno_file=None, phase="train"):
+        super(T2VDataset, self).__init__()
+        self.ann_file = anno_file
+        self.data_prefix = opt.data_path
+        self.clip_len = opt.clip_len
+        self.frame_interval = opt.frame_interval
+        self.size = opt.size
         self.sampler = SampleFrames(self.clip_len, self.frame_interval)
         self.video_infos = []
-        self.phase = opt["phase"]
+        self.phase = phase
         self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
         self.std = torch.FloatTensor([58.395, 57.12, 57.375])
 
@@ -117,16 +117,18 @@ class T2VDataset(Dataset):
         else:
             with open(self.ann_file, "r") as fin:
                 for line in fin:
-                    line_split = line.strip().split("|") # video_path|prompt|label
+                    line_split = line.strip().split("|")  # video_path|prompt|label
                     filename, prompt, label = line_split
-                    label = float(label)
+                    label = np.array([float(label)], dtype=np.float32)
                     filename = os.path.join(self.data_prefix, filename)
-                    self.video_infos.append(dict(filename=filename, prompt=prompt, label=label))
+                    self.video_infos.append(
+                        dict(filename=filename, prompt=prompt, label=label)
+                    )
                 video_len = len(self.video_infos)
                 print(f"Found {video_len} videos in {self.ann_file}")
 
     def __len__(self):
-        
+
         return len(self.video_infos)
 
     def __getitem__(self, index):
@@ -154,5 +156,5 @@ class T2VDataset(Dataset):
             "gt_label": label,
             "original_shape": img_shape,
         }
-        
+
         return data

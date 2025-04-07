@@ -11,7 +11,7 @@ def train_test_split_t2vqa_db(dataset_path, ann_file, split="8-1-1", seed=42):
         for line in fin.readlines():
             line_split = line.strip().split("|")
             filename, prompt, label = line_split
-            label = float(label)
+            label = np.array([float(label)], dtype=np.float32)
             filename = osp.join(dataset_path, filename)
             video_infos.append(dict(filename=filename, prompt=prompt, label=label))
     random.shuffle(video_infos)
