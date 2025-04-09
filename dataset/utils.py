@@ -24,6 +24,7 @@ def train_test_split_t2vqa_db(dataset_path, ann_file, split="8-1-1", seed=42):
             int(ratio[0] * len(video_infos)) : int(
                 (ratio[0] + ratio[1]) * len(video_infos)
             )
-        ],
+        ]+
         video_infos[int((ratio[0] + ratio[1]) * len(video_infos)) :],
+        []
     )

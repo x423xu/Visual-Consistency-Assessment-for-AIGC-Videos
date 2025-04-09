@@ -174,3 +174,4 @@ cython_debug/
 weights/
 logs/
 log*
+notes/

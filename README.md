@@ -24,5 +24,20 @@ Good! now let's manage the project module by module:
 ![flow model](https://cdn-uploads.huggingface.co/production/uploads/661f4653702ad39754d94ac0/S47EG-3TZRYgpzcjwfvzF.png)
 
 ## Flowformer
+## RAFT
+## Memflow
+
+# How to start
+1. Create an environment. *Comment out the packages that have conflicted versions from the environment.yml*
+
+`conda env create -f environment.yml`
+
+2. Activate your environment
+
+`conda activate tcvqa`
+
+3. Train the baseline model
+
+`python main.py --batch_size=8 --num_epochs=200 --lr=1e-4 --weight_decay=1e-3`
 
 

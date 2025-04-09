@@ -7,7 +7,7 @@ from dataset import VQADataModule
 from models import TCVQAModule
 from pytorch_lightning.loggers import WandbLogger, CSVLogger
 
-WANDB = True
+WANDB = False
 
 
 def main():
