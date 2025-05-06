@@ -40,4 +40,10 @@ Good! now let's manage the project module by module:
 
 `python main.py --batch_size=8 --num_epochs=200 --lr=1e-4 --weight_decay=1e-3`
 
+# TODO
+- [ ] try different backbones, swin3D/vivit
+- [ ] add text-visual alignment module
+- [ ] add naturalness assessment module
+
+
 
