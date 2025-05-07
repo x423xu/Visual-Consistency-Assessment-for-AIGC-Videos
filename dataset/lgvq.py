@@ -49,7 +49,7 @@ class SampleFrames:
             ratio = (num_frames - ori_clip_len + 1.0) / self.num_clips
             clip_offsets = np.around(np.arange(self.num_clips) * ratio)
         else:
-            clip_offsets = np.zeros((self.num_clips,), dtype=np.int)
+            clip_offsets = np.zeros((self.num_clips,), dtype=np.int32)
         return clip_offsets
 
     def _get_test_clips(self, num_frames, start_index=0):
@@ -110,7 +110,7 @@ class LGVQDataset(Dataset):
         self.video_infos = []
         self.phase = phase
         self.mean = torch.FloatTensor([127.07401123, 112.09314423,  89.98042367])
-        self.std = torch.FloatTensor([58.395, 57.12, 57.375])
+        self.std = torch.FloatTensor([[66.08117606, 61.06944547, 64.63417973]])
 
         if isinstance(self.ann_file, list):
             self.video_infos = self.ann_file
@@ -179,57 +179,33 @@ if __name__ == "__main__":
     )
     print(f"train: {len(annos_train)}, val: {len(annos_val)}, test: {len(annos_test)}")
 
-    # get train and validation mean ans standard deviation
+    
 
-    data_all = annos_train + annos_val
-    known_means = np.array([127.07401123, 112.09314423, 89.98042367], dtype=np.float64)
-    sum_squared_diff = np.zeros(3, dtype=np.float64)
-    total_count = np.zeros(3, dtype=np.int64)  # Replace with your actual total counts if precomputed
-    for d in tqdm(data_all, total=len(data_all)):
-        filename = d["filename"]
-        vreader = VideoReader(filename)
-        frames = []
-        for i in range(len(vreader)):
-            frame = vreader[i]
-            frames.append(frame)
-        frames = np.stack(frames, axis=0)
-        for c in range(3):
-            channel_data = frames[..., c].astype(np.float64)  # Ensure float64 for precision
-            # Compute squared differences from the known mean
-            squared_diff = (channel_data - known_means[c]) ** 2
-            sum_squared_diff[c] += np.sum(squared_diff)
+    for n,anno in enumerate([annos_train, annos_val]):
+        dataset = LGVQDataset(args, anno_file=anno, phase="train" if n == 0 else "val")
+        # for d in dataset:
+        #     pass
 
-# Compute standard deviation
-variance = sum_squared_diff / total_count
-std = np.sqrt(variance)
-
-print("Standard Deviations:", std)
-
-    # for n,anno in enumerate([annos_train, annos_val]):
-    #     dataset = LGVQDataset(args, anno_file=anno, phase="train" if n == 0 else "val")
-    #     # for d in dataset:
-    #     #     pass
-
-    #     flow_model = (
-    #         getattr(
-    #             importlib.import_module("torchvision.models.optical_flow"), "raft_large"
-    #         )(pretrained=True, progress=False)
-    #         .cuda()
-    #         .eval()
-    #     )
-    #     for n, d in tqdm(enumerate(dataset), total=len(dataset)):
-    #         # if n!=2:
-    #         #     continue
-    #         filename = d["filename"]
-    #         # print(filename)
-    #         name, ext = os.path.splitext(filename)
-    #         if os.path.exists(name + "_flow.npy"):
-    #             continue
-    #         frames = d["video"].cuda().permute(1, 0, 2, 3)  # 8,3,224,224
-    #         img1_batch = frames[:-1]
-    #         img2_batch = frames[1:]
-    #         with torch.no_grad():
-    #             list_of_flows = flow_model(img1_batch.cuda(), img2_batch.cuda())
-    #         predicted_flows = list_of_flows[-1]
-    #         np.save(name + "_flow.npy", predicted_flows.cpu().numpy(), allow_pickle=True)
+        flow_model = (
+            getattr(
+                importlib.import_module("torchvision.models.optical_flow"), "raft_large"
+            )(pretrained=True, progress=False)
+            .cuda()
+            .eval()
+        )
+        for n, d in tqdm(enumerate(dataset), total=len(dataset)):
+            # if n!=2:
+            #     continue
+            filename = d["filename"]
+            # print(filename)
+            name, ext = os.path.splitext(filename)
+            if os.path.exists(name + "_flow.npy"):
+                continue
+            frames = d["video"].cuda().permute(1, 0, 2, 3)  # 8,3,224,224
+            img1_batch = frames[:-1]
+            img2_batch = frames[1:]
+            with torch.no_grad():
+                list_of_flows = flow_model(img1_batch.cuda(), img2_batch.cuda())
+            predicted_flows = list_of_flows[-1]
+            np.save(name + "_flow.npy", predicted_flows.cpu().numpy(), allow_pickle=True)
             
