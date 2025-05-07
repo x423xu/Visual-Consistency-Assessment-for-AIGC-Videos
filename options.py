@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--data_path",
     type=str,
-    default="/SSD_zfs/xxy/data/t2vqa/T2VQA-DB",
+    default="/data0/xxy/data/T2VQA-DB",
     help="dataset path",
 )
 parser.add_argument("--batch_size", type=int, default=4, help="batch size for training")
@@ -32,7 +32,7 @@ parser.add_argument(
 parser.add_argument(
     "--anno_file",
     type=str,
-    default="/SSD_zfs/xxy/data/t2vqa/T2VQA_DB_info.txt",
+    default="/data0/xxy/data/info.txt",
     help="annotation file path",
 )
 parser.add_argument(
@@ -121,3 +121,10 @@ parser.add_argument(
     default=10,
     help="number of quality levels",
 )
+
+parser.add_argument(
+    "--ada_voter",
+    action="store_true",
+    help="if use adaptive voter",
+)
+

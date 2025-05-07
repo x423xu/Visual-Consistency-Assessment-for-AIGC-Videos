@@ -1,7 +1,5 @@
 import os, sys
 
-# set T2VQA as a submodule
-sys.path.append("/SSD_zfs/xxy/code/Visual-Consistency-Assessment-for-AIGC-Videos/T2VQA")
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 from options import parser
 import pytorch_lightning as pl

@@ -1,0 +1,5 @@
+[default]
+entity = xxy
+project = TCVQA
+base_url = https://api.wandb.ai
+

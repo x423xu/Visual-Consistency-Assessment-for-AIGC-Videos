@@ -16,6 +16,7 @@
                 // "--lr=1e-5",
                 // "--backbone=swinv2",
                 // "--wandb",
+                "--flow"
             ],
         },
         {

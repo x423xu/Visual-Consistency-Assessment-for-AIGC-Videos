@@ -58,10 +58,10 @@ def train_test_split_t2vqa_db(
         # val_split = video_infos[int(ratio[0] * len(video_infos)) : int((ratio[0] + ratio[1]) * len(video_infos))]+video_infos[int((ratio[0] + ratio[1]) * len(video_infos)) :]
         # test_split = video_infos[int(ratio[0] * len(video_infos)) : int((ratio[0] + ratio[1]) * len(video_infos))]+video_infos[int((ratio[0] + ratio[1]) * len(video_infos)) :]
         train_data = pd.read_csv(
-            "/SSD_zfs/xxy/code/Visual-Consistency-Assessment-for-AIGC-Videos/0_train.csv"
+            "/data0/xxy/code/Visual-Consistency-Assessment-for-AIGC-Videos/2_train.csv"
         )
         val_data = pd.read_csv(
-            "/SSD_zfs/xxy/code/Visual-Consistency-Assessment-for-AIGC-Videos/0_val.csv"
+            "/data0/xxy/code/Visual-Consistency-Assessment-for-AIGC-Videos/2_val.csv"
         )
         train_split = []
         val_split = []
@@ -129,3 +129,47 @@ def train_test_split_t2vqa_db(
         val_split,
         test_split,
     )
+
+
+def train_test_split_lgvq_db(
+    dataset_path, ann_file, split="8-1-1", seed=42, debias=False, hard_train=False
+):
+    random.seed(seed)
+    ratio = [int(s) for s in split.split("-")]
+    ratio = [r / sum(ratio) for r in ratio]
+    assert len(ratio) == 3, "split must be a string like '8-1-1'"
+    video_infos = []
+    with open(ann_file, "r") as fin:
+        for line in fin.readlines():
+            line_split = line.strip().split(";")
+            filename,qs,qt,qa = line_split
+            prompt = filename.split("/")[-1].rstrip('.mp4')
+            [qs,qt,qa] = [np.array([float(q)], dtype=np.float32) for q in [qs,qt,qa]]
+            filename = osp.join(dataset_path, filename)
+            video_infos.append(dict(filename=filename, prompt=prompt, label=[qs,qt,qa]))
+    random.shuffle(video_infos)
+    train_split = video_infos[: int(ratio[0] * len(video_infos))]
+    val_split = video_infos[int(ratio[0] * len(video_infos)) : int((ratio[0] + ratio[1]) * len(video_infos))]+video_infos[int((ratio[0] + ratio[1]) * len(video_infos)) :]
+    test_split = video_infos[int(ratio[0] * len(video_infos)) : int((ratio[0] + ratio[1]) * len(video_infos))]+video_infos[int((ratio[0] + ratio[1]) * len(video_infos)) :]
+    return (
+        train_split,
+        val_split,
+        test_split,
+    )
+
+if __name__ == "__main__":
+    dataset_path = "/data0/xxy/data/LGVQ/videos"
+    ann_file = "/data0/xxy/data/LGVQ/MOS.txt"
+    train_split, val_split, test_split = train_test_split_lgvq_db(
+        dataset_path, ann_file, split="8-1-1", seed=42, debias=False, hard_train=False
+    )
+    print(len(train_split), len(val_split), len(test_split))
+    # check if the video files exist
+    for vi in train_split:
+        filename = vi["filename"]
+        if not osp.exists(filename):
+            print(f"File {filename} does not exist")
+    for vi in val_split:
+        filename = vi["filename"]
+        if not osp.exists(filename):
+            print(f"File {filename} does not exist")

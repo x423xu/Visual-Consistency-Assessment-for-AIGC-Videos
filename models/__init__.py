@@ -10,7 +10,7 @@ from scipy.stats import pearsonr, spearmanr
 import matplotlib.pyplot as plt
 import wandb
 from .backbone import Backbone
-from T2VQA.model.blip_pretrain import BLIP_Pretrain
+# from T2VQA.model.blip_pretrain import BLIP_Pretrain
 import numpy as np
 
 
@@ -209,12 +209,13 @@ class TCVQAModule(pl.LightningModule):
         ############text video aligner#############
         # fixing the configuration of the blip
         if args.tv_align:
-            self.tv_aligner = BLIP_Pretrain(
-                image_size=args.size,
-                vit="large",
-                embed_dim=256,
-                med_config="/SSD_zfs/xxy/code/Visual-Consistency-Assessment-for-AIGC-Videos/T2VQA/med_config.json",
-            )
+            # self.tv_aligner = BLIP_Pretrain(
+            #     image_size=args.size,
+            #     vit="large",
+            #     embed_dim=256,
+            #     med_config="/SSD_zfs/xxy/code/Visual-Consistency-Assessment-for-AIGC-Videos/T2VQA/med_config.json",
+            # )
+            self.tv_aligner = None
             state_dict = torch.load(
                 "/SSD_zfs/xxy/code/Visual-Consistency-Assessment-for-AIGC-Videos/weights/model_large.pth",
                 map_location="cpu",
@@ -233,19 +234,21 @@ class TCVQAModule(pl.LightningModule):
         if args.flow:
             self.flow_regressor = DifferentialRegressor(args, levels=args.levels)
 
-        num_voters = 1
-        if args.flow:
-            num_voters += 1
-        if args.tv_align:
-            num_voters += 1
-        if args.naturalness:
-            num_voters += 1
-        if args.low_level:
-            num_voters += 1
-        self.voters = nn.Parameter(
-            torch.ones(num_voters, dtype=torch.float32).to(self.device) / num_voters,
-            requires_grad=True,
-        )
+        
+        if not args.ada_voter:
+            num_voters = 1
+            if args.flow:
+                num_voters += 1
+            if args.tv_align:
+                num_voters += 1
+            if args.naturalness:
+                num_voters += 1
+            if args.low_level:
+                num_voters += 1
+            self.voters = nn.Parameter(
+                torch.ones(num_voters, dtype=torch.float32).to(self.device) / num_voters,
+                requires_grad=True,
+            )
 
         self.val_pred = []
         self.val_gt = []
