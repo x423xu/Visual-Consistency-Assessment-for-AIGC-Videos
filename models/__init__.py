@@ -200,6 +200,28 @@ class DifferentialRegressor(nn.Module):
         return score * (100 / self.levels)
 
 
+class VoterModule(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.args = args
+        out_channel = 1
+        if args.flow:
+            out_channel += 1
+        if args.F_branch:
+            out_channel += 1
+        if args.V_branch:
+            out_channel += 1
+        self.voter_regressor = nn.Sequential(
+            nn.Linear(args.num_voters, 128),
+            nn.ReLU(),
+            nn.Linear(128, out_channel),
+        )
+
+    def forward(self, x):
+        # x: (b, num_voters)
+        x = self.voter_regressor(x)
+        return x
+
 class TCVQAModule(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
