@@ -161,6 +161,76 @@ class LGVQDataset(Dataset):
 
         return data
     
+class LGVQFlowDataset(Dataset):
+    """Deformation of materials dataset."""
+
+    def __init__(self, opt, anno_file=None, phase="train"):
+        super(LGVQFlowDataset, self).__init__()
+        self.ann_file = anno_file
+        self.data_prefix = opt.data_path
+        self.clip_len = opt.clip_len
+        self.frame_interval = opt.frame_interval
+        self.size = opt.size
+        self.sampler = SampleFrames(self.clip_len, self.frame_interval)
+        self.video_infos = []
+        self.phase = phase
+        self.mean = torch.FloatTensor([127.07401123, 112.09314423,  89.98042367])
+        self.std = torch.FloatTensor([[66.08117606, 61.06944547, 64.63417973]])
+
+        if isinstance(self.ann_file, list):
+            self.video_infos = self.ann_file
+        else:
+            with open(self.ann_file, "r") as fin:
+                for line in fin:
+                    line_split = line.strip().split("|")  # video_path|prompt|label
+                    filename, prompt, label = line_split
+                    label = np.array([float(label)], dtype=np.float32)
+                    filename = os.path.join(self.data_prefix, filename)
+                    self.video_infos.append(
+                        dict(filename=filename, prompt=prompt, label=label)
+                    )
+                video_len = len(self.video_infos)
+                print(f"Found {video_len} videos in {self.ann_file}")
+
+    def __len__(self):
+
+        return len(self.video_infos)
+
+    def __getitem__(self, index):
+
+        video_info = self.video_infos[index]
+        filename = video_info["filename"]
+        prompt = video_info["prompt"]
+        label = video_info["label"]
+        vreader = VideoReader(filename)
+
+        frame_inds = self.sampler(len(vreader), self.phase == "train")
+        frame_dict = {idx: vreader[idx] for idx in np.unique(frame_inds)}
+        imgs = [frame_dict[idx] for idx in frame_inds]
+        img_shape = imgs[0].shape
+        video = torch.stack(imgs, 0)
+        video = video.permute(3, 0, 1, 2)
+        video = torch.nn.functional.interpolate(video, size=(self.size, self.size))
+
+        vfrag = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
+
+        flow = np.load(filename.replace(".mp4", "_flow.npy"), allow_pickle=True)
+        flow = torch.from_numpy(flow).float()
+        assert flow.shape[2] == self.size
+
+        data = {
+            "filename": filename,
+            "video": vfrag,  # B, T, C, H, W
+            "prompt": prompt,
+            "frame_inds": frame_inds,
+            "sep_label": label,
+            "gt_label": np.mean(np.array(label, dtype=np.float32)),
+            "original_shape": img_shape,
+            "flow": flow,
+        }
+
+        return data
+    
 
 if __name__ == "__main__":
     import os, sys

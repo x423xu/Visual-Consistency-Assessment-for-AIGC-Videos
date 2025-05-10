@@ -127,4 +127,14 @@ parser.add_argument(
     action="store_true",
     help="if use adaptive voter",
 )
+parser.add_argument(
+    "--F_branch",
+    action="store_true",
+    help="if use F-branch",
+)
+parser.add_argument(
+    "--V_branch",
+    action="store_true",
+    help="if use V-branch",
+)
 

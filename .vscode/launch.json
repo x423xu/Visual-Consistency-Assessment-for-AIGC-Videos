@@ -11,12 +11,15 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                // "--batch_size=8",
-                // "--num_epochs=100",
-                // "--lr=1e-5",
-                // "--backbone=swinv2",
+                "--batch_size=8",
+                "--num_epochs=100",
+                "--lr=1e-5",
+                "--backbone=swinv2",
                 // "--wandb",
-                "--flow"
+                "--flow",
+                // "--ada_voter",
+                "--F_branch",
+                "--V_branch"
             ],
         },
         {

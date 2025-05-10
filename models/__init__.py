@@ -35,8 +35,9 @@ class ResBlock(nn.Module):
 
 
 class QRegressor(nn.Module):
-    def __init__(self, levels=10, group=8, reg_type="swinv2"):
+    def __init__(self, args, levels=10, group=8, reg_type="swinv2"):
         super().__init__()
+        self.args = args
         self.reg_type = reg_type
         self.levels = levels
         if reg_type == "swinv2":
@@ -123,12 +124,24 @@ class QRegressor(nn.Module):
             )
 
             # get final score
-            f_score = (f_level_agg @ satisfaction).mean(dim=-1)
-            v_score = v_level @ satisfaction
-            score = (f_score + v_score).unsqueeze(-1) / 2
+            if self.args.F_branch:
+                f_score = (f_level_agg @ satisfaction).mean(dim=-1)
+            else:
+                f_score = torch.zeros_like(f_score)
+            if self.args.V_branch:
+                v_score = v_level @ satisfaction
+            else:
+                v_score = torch.zeros_like(v_score)
+            if self.args.ada_voter:
+                f_score = f_score.unsqueeze(-1)* (100 / self.levels)
+                v_score = v_score.unsqueeze(-1)* (100 / self.levels)
+                score = (f_score,v_score)
+            else:
+                score = (f_score + v_score).unsqueeze(-1) / 2
+                score = score * (100 / self.levels)
             # x = x.mean(dim=-1)
             # x = torch.clamp(x, min=0, max=100)
-            return score * (100 / self.levels)
+            return score
         elif self.reg_type == "vivit":
             ft, _ = self.temporal_decoder(x, x, x)  # 4,785,768
             v_level = self.v_regressor(ft)
@@ -206,7 +219,7 @@ class VoterModule(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        out_channel = 1
+        out_channel = 0
         if args.flow:
             out_channel += 1
         if args.F_branch:
@@ -214,9 +227,14 @@ class VoterModule(nn.Module):
         if args.V_branch:
             out_channel += 1
         self.voter_regressor = nn.Sequential(
-            nn.Linear(args.num_voters, 128),
-            nn.ReLU(),
-            nn.Linear(128, out_channel),
+            nn.AdaptiveMaxPool2d((1, 1)),
+            nn.Flatten(),
+            nn.BatchNorm1d(8),
+            nn.Sigmoid(),
+            nn.Linear(8, 16),
+            nn.BatchNorm1d(16),
+            nn.Sigmoid(),
+            nn.Linear(16, out_channel),
         )
 
     def forward(self, x):
@@ -229,7 +247,7 @@ class TCVQAModule(pl.LightningModule):
         super().__init__()
         self.args = args
         self.venc = self.vision_encoder(args)
-        self.q_regressor = QRegressor(reg_type=args.backbone, levels=args.levels)
+        self.q_regressor = QRegressor(args, reg_type=args.backbone, levels=args.levels)
         ############text video aligner#############
         # fixing the configuration of the blip
         if args.tv_align:
@@ -273,6 +291,9 @@ class TCVQAModule(pl.LightningModule):
                 torch.ones(num_voters, dtype=torch.float32).to(self.device) / num_voters,
                 requires_grad=True,
             )
+        else:
+            self.voter_module = VoterModule(args)
+            self.voters = None
 
         self.val_pred = []
         self.val_gt = []
@@ -291,7 +312,7 @@ class TCVQAModule(pl.LightningModule):
     def forward(self, x, caption=None, prompt=None, flow=None, return_feature=False, return_attn=False):
 
         # rearrange input tensor fron (b,c,f,h,w) -> (bf,c,h,w)
-        b, c, f, h, w = x.shape
+        b, c, f, h, w = x.shape # b,3,8,224,224
         # rearange x for different backbones
         if self.args.backbone == "swinv2":
             x = rearrange(x, "b c f h w -> (b f) c h w")
@@ -302,7 +323,9 @@ class TCVQAModule(pl.LightningModule):
             x = rearrange(x, "b f c h w -> b c f h w")
             out = self.venc(pixel_values=x)
             v_embed = out.last_hidden_state
-        q_score = self.q_regressor(v_embed)
+        q_score = self.q_regressor(v_embed) # v_embed: b,8,49,768
+        if self.args.ada_voter:
+            (f_score, v_score) = q_score
         ## TODO: add flow features
         if self.args.flow:
             v_embed_batch1 = v_embed[:, :-1, ...]
@@ -349,9 +372,14 @@ class TCVQAModule(pl.LightningModule):
             flow_score = self.flow_regressor(v_embed_batch1_warp, v_embed_batch2, return_attn=return_attn)
             if return_attn:
                 flow_score, attn1, attn2, attn3, attn4, v1a, v2a, cross1, cross2 = flow_score
-            q_score_cat = torch.cat(
-                [q_score, flow_score.squeeze().unsqueeze(-1)], dim=-1
-            )
+            if self.args.ada_voter:
+                q_score_cat = torch.cat(
+                    [f_score, v_score, flow_score.squeeze().unsqueeze(-1)], dim=-1
+                )
+            else:
+                q_score_cat = torch.cat(
+                    [q_score, flow_score.squeeze().unsqueeze(-1)], dim=-1
+                )
 
         ## TODO: add text video aligner
         if self.args.tv_align:
@@ -385,6 +413,8 @@ class TCVQAModule(pl.LightningModule):
         #     f_align.append(output)
         # f_align = torch.stack(f_align, dim=1)
         ##################################
+        if self.args.ada_voter:
+            self.voters = self.voter_module(v_embed)
         q_score_out = (nn.functional.softmax(self.voters, dim=-1) * q_score_cat).sum(
             dim=-1, keepdim=True
         )
