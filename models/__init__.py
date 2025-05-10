@@ -175,7 +175,7 @@ class DifferentialRegressor(nn.Module):
         )
         self.levels = levels
 
-    def forward(self, v1, v2):
+    def forward(self, v1, v2, return_attn=False):
         # v1: (b, f, c)
         # v2: (b, f, c)
         # self attention
@@ -183,11 +183,11 @@ class DifferentialRegressor(nn.Module):
         v2 = self.v2_emb(v2)
         v1 = rearrange(v1, "b f p c -> b f (p c)")
         v2 = rearrange(v2, "b f p c -> b f (p c)")
-        v1a, _ = self.self_attention1(v1, v1, v1)
-        v2a, _ = self.self_attention2(v2, v2, v2)
+        v1a, attn1 = self.self_attention1(v1, v1, v1)
+        v2a, attn2 = self.self_attention2(v2, v2, v2)
         # cross attention
-        cross1, _ = self.cross_attention1(v1, v2, v2)
-        cross2, _ = self.cross_attention2(v2, v1, v1)
+        cross1, attn3 = self.cross_attention1(v1, v2, v2)
+        cross2, attn4 = self.cross_attention2(v2, v1, v1)
         # get the difference
         fstack = torch.cat([v1a, v2a, cross1, cross2], dim=1)
         # get the score
@@ -197,6 +197,8 @@ class DifferentialRegressor(nn.Module):
             torch.arange(1, self.levels + 1).to(diff_level.device).to(diff_level.dtype)
         )
         score = diff_level @ satisfaction
+        if return_attn:
+            return score, attn1, attn2, attn3, attn4, v1a, v2a, cross1, cross2
         return score * (100 / self.levels)
 
 
@@ -264,7 +266,7 @@ class TCVQAModule(pl.LightningModule):
         vision_encoder.train()
         return vision_encoder
 
-    def forward(self, x, caption=None, prompt=None, flow=None, return_feature=False):
+    def forward(self, x, caption=None, prompt=None, flow=None, return_feature=False, return_attn=False):
 
         # rearrange input tensor fron (b,c,f,h,w) -> (bf,c,h,w)
         b, c, f, h, w = x.shape
@@ -322,7 +324,9 @@ class TCVQAModule(pl.LightningModule):
                 v_embed_batch1_warp, "(b c) h w l -> b c (h w) l", b=b, h=h, w=h
             )
             ##########################################
-            flow_score = self.flow_regressor(v_embed_batch1_warp, v_embed_batch2)
+            flow_score = self.flow_regressor(v_embed_batch1_warp, v_embed_batch2, return_attn=return_attn)
+            if return_attn:
+                flow_score, attn1, attn2, attn3, attn4, v1a, v2a, cross1, cross2 = flow_score
             q_score_cat = torch.cat(
                 [q_score, flow_score.squeeze().unsqueeze(-1)], dim=-1
             )
@@ -364,6 +368,10 @@ class TCVQAModule(pl.LightningModule):
         )
         if return_feature:
             return q_score_out, v_embed
+        if return_attn:
+            if not self.args.flow:
+                raise 'attention is only available for flow regressor'
+            return (flow_score, attn1, attn2, attn3, attn4, v1a, v2a, cross1, cross2)
         return q_score_out
 
     def training_step(self, batch, batch_idx):
