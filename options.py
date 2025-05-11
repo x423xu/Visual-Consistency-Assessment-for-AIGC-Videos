@@ -8,6 +8,12 @@ parser = argparse.ArgumentParser(
 
 ######################Data options############################
 parser.add_argument(
+    "--data_name",
+    type=str,
+    default="T2VQA",
+    help="dataset name, e.g. T2VQA, LGVQ",
+)
+parser.add_argument(
     "--data_path",
     type=str,
     default="/data0/xxy/data/T2VQA-DB",

@@ -124,13 +124,12 @@ class QRegressor(nn.Module):
             )
 
             # get final score
-            if self.args.F_branch:
-                f_score = (f_level_agg @ satisfaction).mean(dim=-1)
-            else:
+            
+            f_score = (f_level_agg @ satisfaction).mean(dim=-1)
+            if not self.args.F_branch:
                 f_score = torch.zeros_like(f_score)
-            if self.args.V_branch:
-                v_score = v_level @ satisfaction
-            else:
+            v_score = v_level @ satisfaction
+            if not self.args.V_branch:
                 v_score = torch.zeros_like(v_score)
             if self.args.ada_voter:
                 f_score = f_score.unsqueeze(-1)* (100 / self.levels)
@@ -380,6 +379,11 @@ class TCVQAModule(pl.LightningModule):
                 q_score_cat = torch.cat(
                     [q_score, flow_score.squeeze().unsqueeze(-1)], dim=-1
                 )
+        else:
+            if self.args.ada_voter:
+                q_score_cat = torch.cat([f_score, v_score], dim=-1)
+            else:
+                q_score_cat = q_score
 
         ## TODO: add text video aligner
         if self.args.tv_align:

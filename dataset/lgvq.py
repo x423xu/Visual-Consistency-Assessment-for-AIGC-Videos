@@ -148,14 +148,15 @@ class LGVQDataset(Dataset):
         video = torch.nn.functional.interpolate(video, size=(self.size, self.size))
 
         vfrag = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
-
+        gt_label = np.mean(np.array(label, dtype=np.float32))
+        gt_label = np.array([gt_label], dtype=np.float32)
         data = {
             "filename": filename,
             "video": vfrag,  # B, T, C, H, W
             "prompt": prompt,
             "frame_inds": frame_inds,
             "sep_label": label,
-            "gt_label": np.mean(np.array(label, dtype=np.float32)),
+            "gt_label": gt_label,
             "original_shape": img_shape,
         }
 
@@ -218,13 +219,16 @@ class LGVQFlowDataset(Dataset):
         flow = torch.from_numpy(flow).float()
         assert flow.shape[2] == self.size
 
+        gt_label = np.mean(np.array(label, dtype=np.float32))
+        gt_label = np.array([gt_label], dtype=np.float32)
+
         data = {
             "filename": filename,
             "video": vfrag,  # B, T, C, H, W
             "prompt": prompt,
             "frame_inds": frame_inds,
             "sep_label": label,
-            "gt_label": np.mean(np.array(label, dtype=np.float32)),
+            "gt_label": gt_label,
             "original_shape": img_shape,
             "flow": flow,
         }

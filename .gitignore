@@ -179,3 +179,5 @@ log*
 notes/
 *.lst
 *.png
+
+.vscode/
