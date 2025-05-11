@@ -1,6 +1,6 @@
 import os, sys
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from options import parser
 import pytorch_lightning as pl
 from dataset import VQADataModule

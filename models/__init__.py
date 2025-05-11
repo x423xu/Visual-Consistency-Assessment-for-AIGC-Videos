@@ -218,13 +218,13 @@ class VoterModule(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        out_channel = 0
+        out_channel = 2
         if args.flow:
             out_channel += 1
-        if args.F_branch:
-            out_channel += 1
-        if args.V_branch:
-            out_channel += 1
+        # if args.F_branch:
+        #     out_channel += 1
+        # if args.V_branch:
+        #     out_channel += 1
         self.voter_regressor = nn.Sequential(
             nn.AdaptiveMaxPool2d((1, 1)),
             nn.Flatten(),

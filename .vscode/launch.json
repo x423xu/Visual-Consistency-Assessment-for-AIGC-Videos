@@ -16,8 +16,8 @@
                 "--lr=1e-5",
                 "--backbone=swinv2",
                 // "--wandb",
-                // "--flow",
-                // "--ada_voter",
+                "--flow",
+                "--ada_voter",
                 // "--F_branch",
                 "--V_branch"
             ],
